@@ -1,0 +1,239 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Three.js BundleGroup | ICS MEDIA</title>
+    <style>
+      body { margin: 0; overflow: hidden; }
+      #stage { height: 100svh; }
+      canvas { display: block; }
+      #info {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        margin: 0;
+        padding: 4px 8px;
+        color: #fff;
+        background: #000a;
+        font: 12px / 1.5 sans-serif;
+        pointer-events: none;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+          "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+          "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.21.0/dist/lil-gui.esm.js",
+          "stats.js": "https://cdn.jsdelivr.net/npm/stats.js@0.17.0/src/Stats.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import * as THREE from "three/webgpu";
+      import { WebGPURenderer } from "three/webgpu";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import GUI from "lil-gui";
+      import Stats from "stats.js";
+
+      const status = document.querySelector("#status");
+      const drawCallsInfo = document.querySelector("#info-drawCalls");
+
+      init().catch((error) => {
+        console.error(error);
+        status.textContent = "Unable to start the renderer.";
+      });
+
+      async function init() {
+        const stage = document.querySelector("#stage");
+        // ページを読み込むたびに変え、ページ内の比較では同じシードを使う
+        const seed = Math.floor(Math.random() * 2 ** 32);
+        const params = { count: 3000, useBundleGroup: true, animation: false, resetCamera };
+
+        // クエリパラメーターにwebglが含まれる場合は強制的にWebGLでレンダリングする
+        const forceWebGL = new URLSearchParams(location.search).has("webgl");
+
+        // レンダラーを作成
+        const renderer = new WebGPURenderer({
+          canvas: document.querySelector("#myCanvas"),
+          antialias: true,
+          forceWebGL,
+        });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        await renderer.init(); // 初期化
+
+        // 実際にWebGPUがバックエンドとして使われているかどうかを判定
+        const isWebGPU = renderer.backend.isWebGPUBackend === true;
+        params.useBundleGroup = isWebGPU;
+
+        // シーンを作成
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333333);
+
+        // カメラを作成
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 600);
+
+        // カメラコントローラーを作成
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.enablePan = false;
+        controls.minDistance = 12;
+        controls.maxDistance = 260;
+
+        // ライトを作成
+        const light = new THREE.DirectionalLight(0xffffff, 3);
+        light.position.set(30, 40, 60);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+
+        // 複数種のジオメトリを作成
+        const geometries = [
+          new THREE.BoxGeometry(1, 1, 1),
+          new THREE.SphereGeometry(0.7, 16, 8),
+          new THREE.ConeGeometry(0.7, 1.6, 16),
+          new THREE.CylinderGeometry(0.5, 0.5, 1.4, 16),
+          new THREE.OctahedronGeometry(0.9),
+          new THREE.TorusGeometry(0.6, 0.2, 8, 16),
+          new THREE.TorusKnotGeometry(0.5, 0.2, 32, 8),
+          new THREE.CapsuleGeometry(0.4, 0.8, 4, 8),
+        ];
+
+        const materialFactories = [
+          (color) => new THREE.MeshPhongMaterial({ color, specular: 0xffffff, shininess: 100 }),
+          (color) => new THREE.MeshLambertMaterial({ color, flatShading: true }),
+          (color) => new THREE.MeshToonMaterial({ color }),
+          () => new THREE.MeshNormalMaterial(),
+          (color) => new THREE.MeshBasicMaterial({ color, wireframe: true }),
+        ];
+
+        // ランダムなマテリアルを作成する関数
+        function createRandomMaterial() {
+          // 彩度と明度は固定し、色相だけをランダムにする
+          const color = new THREE.Color(`hsl(${THREE.MathUtils.seededRandom() * 360}, 80%, 60%)`);
+          const index = Math.floor(THREE.MathUtils.seededRandom() * materialFactories.length);
+          return materialFactories[index](color);
+        }
+        const group = new THREE.Group();
+        const bundleGroup = new THREE.BundleGroup();
+        // メッシュごとの回転を反映する
+        bundleGroup.static = false;
+        let meshes = [];
+
+        // メッシュリストを作成する関数
+        function createMeshes() {
+          // 個数変更前のマテリアルを解放する
+          for (const mesh of meshes) {
+            mesh.material.dispose();
+          }
+          group.clear();
+          bundleGroup.clear();
+          meshes = [];
+          // 個数を変えても同じ乱数列を使い、配置の比較をしやすくする
+          THREE.MathUtils.seededRandom(seed);
+          // メッシュをランダムに作成
+          for (let i = 0; i < params.count; i++) {
+            // 形状・色・マテリアルの種類を固定の組み合わせにしない
+            const geometry = geometries[i % geometries.length];
+            const material = createRandomMaterial();
+            const mesh = new THREE.Mesh(geometry, material);
+            const radius = 29 * Math.cbrt(THREE.MathUtils.seededRandom());
+            const theta = THREE.MathUtils.seededRandom() * Math.PI * 2;
+            const cosPhi = THREE.MathUtils.seededRandom() * 2 - 1;
+            const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
+            mesh.position.set(radius * sinPhi * Math.cos(theta), radius * cosPhi, radius * sinPhi * Math.sin(theta));
+            mesh.rotation.set(THREE.MathUtils.seededRandom() * Math.PI, THREE.MathUtils.seededRandom() * Math.PI, 0);
+            meshes.push(mesh);
+          }
+          updateGroup();
+        }
+
+        function updateGroup() {
+          scene.remove(group, bundleGroup);
+          const useBundle = isWebGPU && params.useBundleGroup;
+          const target = useBundle ? bundleGroup : group;
+          for (const mesh of meshes) {
+            // バンドルの再利用中は描画リストを固定する
+            mesh.frustumCulled = !useBundle;
+            target.add(mesh);
+          }
+          scene.add(target);
+          // メッシュ構成を変更したので描画コマンドを記録し直す
+          bundleGroup.needsUpdate = true;
+          status.textContent = `Backend: ${isWebGPU ? "WebGPU" : "WebGL"}`;
+        }
+
+        // パラメーターを操作できるGUIを作成
+        const gui = new GUI();
+        gui.add(params, "count", 500, 10000, 500).name("Num").onFinishChange(createMeshes);
+        gui.add(params, "useBundleGroup").name("Use BundleGroup").onChange(updateGroup);
+        gui.add(params, "animation").name("Animation");
+        gui.add(params, "resetCamera").name("Reset camera");
+
+        // パフォーマンスモニターを作成
+        const stats = new Stats();
+        stats.showPanel(0);
+        document.body.appendChild(stats.dom);
+        createMeshes();
+        // 初期化のために実行
+        resize();
+        resetCamera();
+        // リサイズイベント発生時に実行
+        window.addEventListener("resize", resize);
+
+        function resize() {
+          // サイズを取得
+          const width = stage.clientWidth;
+          const height = stage.clientHeight;
+
+          // レンダラーのサイズを調整する
+          renderer.setPixelRatio(window.devicePixelRatio);
+          renderer.setSize(width, height);
+
+          // カメラのアスペクト比を正す
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+        }
+
+        function resetCamera() {
+          // 縦長の画面でも球状の配置全体が収まる距離にする
+          const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
+          const limitingFov = Math.min(halfFov, Math.atan(Math.tan(halfFov) * camera.aspect));
+          const distance = 33 / Math.sin(limitingFov);
+          camera.position.set(0, 0, distance);
+          controls.target.set(0, 0, 0);
+          controls.update();
+        }
+
+        let previousTime = 0;
+        // 毎フレーム時に実行されるループイベントです
+        renderer.setAnimationLoop((time) => {
+          stats.begin();
+          const delta = Math.min((time - previousTime) / 1000, 0.05);
+          previousTime = time;
+          controls.update();
+          // アニメーションあり
+          if (params.animation) {
+            for (const mesh of meshes) {
+              mesh.rotation.x += delta * 0.25;
+              mesh.rotation.y += delta * 0.5;
+            }
+          }
+          renderer.render(scene, camera); // レンダリング
+          drawCallsInfo.textContent = `Draw calls: ${renderer.info.render.drawCalls}`;
+          stats.end();
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="myCanvas"></canvas>
+    </div>
+    <div id="info">
+      <div id="status" role="status"></div>
+      <div id="info-drawCalls"></div>
+    </div>
+  </body>
+</html>
