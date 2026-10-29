@@ -25,9 +25,8 @@
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
           "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
-          "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.21.0/dist/lil-gui.esm.js",
-          "stats.js": "https://cdn.jsdelivr.net/npm/stats.js@0.17.0/src/Stats.js"
+          "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.tsl.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
         }
       }
     </script>
@@ -35,8 +34,7 @@
       import * as THREE from "three/webgpu";
       import { WebGPURenderer } from "three/webgpu";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-      import GUI from "lil-gui";
-      import Stats from "stats.js";
+      import { Inspector } from "three/addons/inspector/Inspector.js";
 
       const status = document.querySelector("#status");
       const drawCallsInfo = document.querySelector("#info-drawCalls");
@@ -61,6 +59,8 @@
           antialias: true,
           forceWebGL,
         });
+        // Inspectorをレンダラーへ登録
+        renderer.inspector = new Inspector();
         renderer.setPixelRatio(window.devicePixelRatio);
         await renderer.init(); // 初期化
 
@@ -164,17 +164,14 @@
           status.textContent = `Backend: ${isWebGPU ? "WebGPU" : "WebGL"}`;
         }
 
-        // パラメーターを操作できるGUIを作成
-        const gui = new GUI();
-        gui.add(params, "count", 500, 10000, 500).name("Num").onFinishChange(createMeshes);
+        // Parametersタブに調整項目を追加
+        const gui = renderer.inspector.createParameters("BundleGroup");
+        gui.add(params, "count", 500, 10000, 500).name("Num").onChange(createMeshes).debounce(200);
         gui.add(params, "useBundleGroup").name("Use BundleGroup").onChange(updateGroup);
         gui.add(params, "animation").name("Animation");
         gui.add(params, "resetCamera").name("Reset camera");
 
-        // パフォーマンスモニターを作成
-        const stats = new Stats();
-        stats.showPanel(0);
-        document.body.appendChild(stats.dom);
+        renderer.inspector.setActiveTab(renderer.inspector.parameters);
         createMeshes();
         // 初期化のために実行
         resize();
@@ -209,7 +206,6 @@
         let previousTime = 0;
         // 毎フレーム時に実行されるループイベントです
         renderer.setAnimationLoop((time) => {
-          stats.begin();
           const delta = Math.min((time - previousTime) / 1000, 0.05);
           previousTime = time;
           controls.update();
@@ -222,7 +218,6 @@
           }
           renderer.render(scene, camera); // レンダリング
           drawCallsInfo.textContent = `Draw calls: ${renderer.info.render.drawCalls}`;
-          stats.end();
         });
       }
     </script>
