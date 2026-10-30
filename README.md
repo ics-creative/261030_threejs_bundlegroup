@@ -1,6 +1,6 @@
 # Three.js BundleGroup
 
-ICS MEDIAの記事『[](https://ics.media/entry/261030/)』向けに、Three.jsの通常の`Group`と`BundleGroup`の描画を比較するデモです。HTML内にCSSとJavaScriptを直接記述し、ライブラリーをCDNから読み込みます。ビルドは不要です。
+ICS MEDIAの記事『[WebGPU版のThree.jsで大量オブジェクトの描画負荷を最適化するBundleGroup](https://ics.media/entry/261030/)』向けに、Three.jsの通常の`Group`と`BundleGroup`の描画を比較するデモです。HTML内にCSSとJavaScriptを直接記述し、ライブラリーをCDNから読み込みます。ビルドは不要です。
 
 ## 操作
 
