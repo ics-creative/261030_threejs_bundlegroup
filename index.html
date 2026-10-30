@@ -166,7 +166,7 @@
 
         // Parametersタブに調整項目を追加
         const gui = renderer.inspector.createParameters("BundleGroup");
-        gui.add(params, "count", 500, 10000, 500).name("Num").onChange(createMeshes).debounce(200);
+        gui.add(params, "count", 500, 10000, 100).name("Num").onChange(createMeshes).debounce(200);
         gui.add(params, "useBundleGroup").name("Use BundleGroup").onChange(updateGroup);
         gui.add(params, "animation").name("Animation");
         gui.add(params, "resetCamera").name("Reset camera");
