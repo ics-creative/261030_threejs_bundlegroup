@@ -1,6 +1,6 @@
 # Three.js BundleGroup
 
-ICS MEDIAの記事『[]()』向けに、Three.jsの通常の`Group`と`BundleGroup`の描画を比較するデモです。HTML内にCSSとJavaScriptを直接記述し、ライブラリーをCDNから読み込みます。ビルドは不要です。
+ICS MEDIAの記事『[](https://ics.media/entry/261030/)』向けに、Three.jsの通常の`Group`と`BundleGroup`の描画を比較するデモです。HTML内にCSSとJavaScriptを直接記述し、ライブラリーをCDNから読み込みます。ビルドは不要です。
 
 ## 操作
 
@@ -8,7 +8,7 @@ ICS MEDIAの記事『[]()』向けに、Three.jsの通常の`Group`と`BundleGro
 
 - **Num**：オブジェクト数を変更します。
 - **Use BundleGroup**：同じメッシュの配置・回転を維持して本記事で紹介する最適化の有無を切り替えます。
-- **Animation**：各メッシュを回転させます。
+- **Animation**：各メッシュで異なるアニメーションを再生します。オフで一時停止し、オンで続きから再開します。
 - **Reset camera**：すべてのオブジェクトが収まるカメラ位置に戻します。
 - ドラッグで視点を回転、ホイールまたはピンチで拡大・縮小します。
 
